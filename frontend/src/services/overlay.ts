@@ -16,19 +16,7 @@
  */
 
 import type { DetectedObject, DetectionMessage } from "@/types";
-
-/** Deterministic, readable color per tracking id / class. */
-function colorFor(key: number | string): string {
-  const n = typeof key === "number" ? key : hashString(key);
-  const hue = (n * 47) % 360;
-  return `hsl(${hue}, 85%, 58%)`;
-}
-
-function hashString(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
+import { classColor } from "@/services/format";
 
 /** The rectangle the video actually occupies inside its element (contain). */
 interface RenderRect {
@@ -124,7 +112,7 @@ function drawBox(
   const w = (obj.x2 - obj.x1) * rect.scaleX;
   const h = (obj.y2 - obj.y1) * rect.scaleY;
 
-  const color = colorFor(obj.id >= 0 ? obj.id : obj.class);
+  const color = classColor(obj.class);
 
   // Box.
   ctx.lineWidth = 2;
@@ -148,7 +136,7 @@ function drawBox(
   ctx.fillRect(x, labelY, textW + padding * 2, labelH);
 
   // Label text.
-  ctx.fillStyle = "#0b0f17";
+  ctx.fillStyle = "#000";
   ctx.textBaseline = "middle";
   ctx.fillText(label, x + padding, labelY + labelH / 2);
 }

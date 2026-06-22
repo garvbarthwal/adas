@@ -16,11 +16,11 @@ export function VideoStatusOverlay() {
   const spinning = videoState === "connecting" || videoState === "new" || videoState === "idle";
 
   return (
-    <div className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 bg-black/50 text-center">
+    <div className="pointer-events-none absolute inset-0 z-40 flex flex-col items-center justify-center gap-3 bg-black/60 text-center backdrop-blur-[1px]">
       {spinning && (
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-surface-600 border-t-accent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-white/15 border-t-accent" />
       )}
-      <p className="text-sm text-gray-300">{message}</p>
+      <p className="text-sm text-slate-300">{message}</p>
     </div>
   );
 }

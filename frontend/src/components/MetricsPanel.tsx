@@ -1,55 +1,63 @@
 /** Live metrics from the `/ws/metrics` channel. */
 
 import { useStore } from "@/store/useStore";
+import { config } from "@/services/config";
+import { formatUptime } from "@/services/format";
 import type { StreamStatus } from "@/types";
 
-function StatusDot({ status }: { status: StreamStatus | string }) {
-  const color =
-    status === "online"
-      ? "bg-emerald-400"
-      : status === "connecting"
-        ? "bg-amber-400"
-        : "bg-red-500";
-  return <span className={`inline-block h-2.5 w-2.5 rounded-full ${color}`} />;
+function statusColor(status: StreamStatus | string): string {
+  return status === "online" ? "#34d399" : status === "connecting" ? "#fbbf24" : "#f87171";
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function MetricCard({ label, value, unit }: { label: string; value: string; unit?: string }) {
   return (
-    <div className="rounded-lg bg-surface-700/60 p-3">
-      <div className="text-xs uppercase tracking-wide text-gray-400">{label}</div>
-      <div className="mt-1 font-mono text-lg text-white">{value}</div>
+    <div className="rounded-[7px] border border-white/[0.04] bg-white/[0.025] px-3 py-[11px] transition-colors hover:bg-white/[0.04]">
+      <div className="mb-[5px] text-[9px] font-semibold uppercase tracking-[0.1em] text-slate-600">
+        {label}
+      </div>
+      <div className="flex items-baseline gap-[3px]">
+        <span className="font-mono text-[18px] font-medium leading-none text-slate-200">
+          {value}
+        </span>
+        {unit && <span className="text-[10px] text-slate-600">{unit}</span>}
+      </div>
     </div>
   );
 }
 
 export function MetricsPanel() {
   const metrics = useStore((s) => s.metrics);
+  const status = metrics?.streamStatus ?? "offline";
+  const color = statusColor(status);
 
   return (
-    <section className="rounded-xl bg-surface-800 p-4">
-      <header className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-gray-200">Metrics</h2>
-        <div className="flex items-center gap-2 text-xs text-gray-400">
-          <StatusDot status={metrics?.streamStatus ?? "offline"} />
-          {metrics?.streamStatus ?? "offline"}
+    <section className="rounded-[10px] border border-white/5 bg-panel p-3.5">
+      <header className="mb-3.5 flex items-center justify-between">
+        <h2 className="m-0 text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-600">
+          Metrics
+        </h2>
+        <div className="flex items-center gap-1.5">
+          <span
+            className="inline-block h-1.5 w-1.5 flex-shrink-0 rounded-full"
+            style={{
+              background: color,
+              boxShadow: status === "online" ? "0 0 6px rgba(52,211,153,0.5)" : "none",
+            }}
+          />
+          <span className="text-[11px] capitalize" style={{ color }}>
+            {status}
+          </span>
         </div>
       </header>
 
-      {metrics ? (
-        <div className="grid grid-cols-2 gap-2">
-          <Stat label="Detection FPS" value={metrics.detectionFps.toFixed(1)} />
-          <Stat label="Stream FPS" value={metrics.streamFps.toFixed(1)} />
-          <Stat label="Latency" value={`${metrics.latencyMs.toFixed(0)} ms`} />
-          <Stat label="Tracked" value={String(metrics.trackedObjects)} />
-          <Stat
-            label="Uptime"
-            value={`${Math.floor(metrics.uptimeSeconds / 60)}m`}
-          />
-          <Stat label="Camera" value={metrics.cameraId} />
-        </div>
-      ) : (
-        <p className="text-sm text-gray-500">Waiting for metrics…</p>
-      )}
+      <div className="grid grid-cols-2 gap-1.5">
+        <MetricCard label="Detection FPS" value={(metrics?.detectionFps ?? 0).toFixed(1)} />
+        <MetricCard label="Stream FPS" value={(metrics?.streamFps ?? 0).toFixed(1)} />
+        <MetricCard label="Latency" value={`${Math.round(metrics?.latencyMs ?? 0)}`} unit="ms" />
+        <MetricCard label="Tracked" value={`${metrics?.trackedObjects ?? 0}`} unit="obj" />
+        <MetricCard label="Uptime" value={formatUptime(metrics?.uptimeSeconds ?? 0)} />
+        <MetricCard label="Source" value={metrics?.cameraId ?? config.cameraId} />
+      </div>
     </section>
   );
 }

@@ -28,6 +28,13 @@ export interface Alert {
  */
 export type SourceMode = "mediamtx" | "browser";
 
+/**
+ * Which physical camera Browser Camera Mode captures from. Maps directly to the
+ * getUserMedia `facingMode` constraint: "user" = front (selfie) camera,
+ * "environment" = rear camera. Mainly useful on phones/tablets.
+ */
+export type CameraFacing = "user" | "environment";
+
 interface AppState {
   // --- Connection state (per concern) ---
   detectionSocket: ConnectionState;
@@ -38,6 +45,8 @@ interface AppState {
   sourceMode: SourceMode;
   /** True while the browser webcam is actively capturing + publishing. */
   browserCameraActive: boolean;
+  /** Front vs rear camera for Browser Camera Mode. */
+  cameraFacing: CameraFacing;
 
   // --- Live data ---
   detection: DetectionMessage | null;
@@ -50,6 +59,9 @@ interface AppState {
   setVideoState: (s: RTCPeerConnectionState | "idle") => void;
   setSourceMode: (m: SourceMode) => void;
   setBrowserCameraActive: (active: boolean) => void;
+  setCameraFacing: (f: CameraFacing) => void;
+  /** Flip between the front and rear camera. */
+  toggleCameraFacing: () => void;
   setDetection: (d: DetectionMessage) => void;
   setMetrics: (m: CameraMetrics) => void;
   pushAlert: (level: Alert["level"], message: string) => void;
@@ -64,6 +76,7 @@ export const useStore = create<AppState>((set) => ({
 
   sourceMode: "mediamtx",
   browserCameraActive: false,
+  cameraFacing: "environment",
 
   detection: null,
   metrics: null,
@@ -74,6 +87,11 @@ export const useStore = create<AppState>((set) => ({
   setVideoState: (s) => set({ videoState: s }),
   setSourceMode: (m) => set({ sourceMode: m }),
   setBrowserCameraActive: (active) => set({ browserCameraActive: active }),
+  setCameraFacing: (f) => set({ cameraFacing: f }),
+  toggleCameraFacing: () =>
+    set((state) => ({
+      cameraFacing: state.cameraFacing === "user" ? "environment" : "user",
+    })),
   setDetection: (d) => set({ detection: d }),
   setMetrics: (m) => set({ metrics: m }),
   pushAlert: (level, message) =>

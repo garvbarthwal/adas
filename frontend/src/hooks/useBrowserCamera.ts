@@ -19,10 +19,13 @@ import { useStore } from "@/store/useStore";
 
 export function useBrowserCamera(videoRef: RefObject<HTMLVideoElement>): void {
   const active = useStore((s) => s.browserCameraActive);
+  const facing = useStore((s) => s.cameraFacing);
   const setVideoState = useStore((s) => s.setVideoState);
   const setBrowserCameraActive = useStore((s) => s.setBrowserCameraActive);
   const pushAlert = useStore((s) => s.pushAlert);
 
+  // Re-runs (tears down + restarts the stream) whenever `facing` changes, so
+  // flipping front/back swaps the captured + published camera live.
   useEffect(() => {
     if (!active) return;
 
@@ -36,7 +39,12 @@ export function useBrowserCamera(videoRef: RefObject<HTMLVideoElement>): void {
       try {
         setVideoState("connecting");
         stream = await navigator.mediaDevices.getUserMedia({
-          video: { width: { ideal: 640 }, height: { ideal: 480 } },
+          video: {
+            width: { ideal: 640 },
+            height: { ideal: 480 },
+            // `ideal` (not `exact`) so devices with only one camera still work.
+            facingMode: { ideal: facing },
+          },
           audio: false,
         });
         if (cancelled) {
@@ -80,5 +88,5 @@ export function useBrowserCamera(videoRef: RefObject<HTMLVideoElement>): void {
       if (video) video.srcObject = null;
       setVideoState("idle");
     };
-  }, [active, videoRef, setVideoState, setBrowserCameraActive, pushAlert]);
+  }, [active, facing, videoRef, setVideoState, setBrowserCameraActive, pushAlert]);
 }

@@ -1,0 +1,9 @@
+# Development-only dependencies.
+#
+# Required for "Browser Camera Mode" (INGEST_MODE=webrtc): the backend accepts a
+# WebRTC publish from the browser via the WHIP endpoint, decoding frames with
+# aiortc + PyAV. NOT needed for production RTSP/MediaMTX deployments.
+-r requirements.txt
+
+aiortc==1.9.0
+av==12.3.0   # pinned <13: aiortc 1.9.0 requires av>=9.0.0,<13.0.0

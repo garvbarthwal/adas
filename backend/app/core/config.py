@@ -92,6 +92,33 @@ class Settings(BaseSettings):
     # Inference device: "cpu", "cuda", "0", etc.
     device: str = Field(default="cpu")
 
+    # ----- Auxiliary models (potholes + lanes) ------------------------------
+    # These run on a *slower* cadence than object detection, expressed in
+    # wall-clock seconds so it is independent of DETECTION_FPS and the camera's
+    # frame rate. Their latest results are cached and attached to every detection
+    # message so the frontend always has the full scene to draw between refreshes.
+
+    # Pothole detection (dedicated single-class model on the road ROI).
+    enable_pothole: bool = Field(default=True)
+    pothole_model: str = Field(default="potholes.pt")
+    # How often to re-detect potholes (seconds). They're static, so ~2s is plenty.
+    pothole_refresh_seconds: float = Field(default=2.0)
+    # Reduced inference size — potholes are large/near, so 320 is plenty.
+    pothole_imgsz: int = Field(default=320)
+    pothole_confidence: float = Field(default=0.35)
+    # Road ROI: fraction of frame height where it starts (0.6 => lower 40%).
+    pothole_roi_top: float = Field(default=0.6)
+
+    # Lane-line segmentation (runs on the full frame at reduced imgsz).
+    enable_lane: bool = Field(default=True)
+    lane_model: str = Field(default="best_lane.pt")
+    # How often to re-segment lanes (seconds).
+    lane_refresh_seconds: float = Field(default=1.0)
+    lane_imgsz: int = Field(default=384)
+    lane_confidence: float = Field(default=0.35)
+    # Keep every Nth lane polygon vertex to keep the WS payload small.
+    lane_point_stride: int = Field(default=3)
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Parse the comma separated CORS origins into a list."""

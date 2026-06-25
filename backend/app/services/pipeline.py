@@ -23,8 +23,10 @@ import time
 
 from app.core.config import CameraConfig, Settings
 from app.core.logging import get_logger
+from app.detectors.lane import LaneSegmenter
+from app.detectors.pothole import PotholeDetector
 from app.detectors.yolo import YoloDetector
-from app.schemas.detection import DetectionMessage
+from app.schemas.detection import DetectionMessage, LaneSegment, PotholeObject
 from app.schemas.metrics import CameraMetrics, StreamInfo
 from app.services.metrics import MetricsTracker
 from app.stream.base import FrameSource
@@ -75,9 +77,40 @@ class CameraPipeline:
             tracker=settings.tracker,
             device=settings.device,
         )
+        # Auxiliary models run on a slower cadence (see _detection_loop). Each is
+        # optional and gated by a config flag so deployments can drop either one.
+        self.pothole_detector = (
+            PotholeDetector(
+                model_path=settings.pothole_model,
+                confidence=settings.pothole_confidence,
+                iou=settings.iou_threshold,
+                imgsz=settings.pothole_imgsz,
+                roi_top=settings.pothole_roi_top,
+                device=settings.device,
+            )
+            if settings.enable_pothole
+            else None
+        )
+        self.lane_segmenter = (
+            LaneSegmenter(
+                model_path=settings.lane_model,
+                confidence=settings.lane_confidence,
+                imgsz=settings.lane_imgsz,
+                device=settings.device,
+                point_stride=settings.lane_point_stride,
+            )
+            if settings.enable_lane
+            else None
+        )
         self.metrics = MetricsTracker()
 
         self._latest_detection: DetectionMessage | None = None
+        # Cached results from the slower auxiliary models, re-sent every tick.
+        self._latest_potholes: list[PotholeObject] = []
+        self._latest_lanes: list[LaneSegment] = []
+        # perf_counter timestamps of the last auxiliary runs (0 => never run).
+        self._last_pothole_ts = 0.0
+        self._last_lane_ts = 0.0
         self._tasks: list[asyncio.Task] = []
         self._running = False
 
@@ -89,6 +122,10 @@ class CameraPipeline:
         loop = asyncio.get_running_loop()
         # Model load is blocking (torch); keep the event loop responsive.
         await loop.run_in_executor(None, self.detector.load)
+        if self.pothole_detector is not None:
+            await loop.run_in_executor(None, self.pothole_detector.load)
+        if self.lane_segmenter is not None:
+            await loop.run_in_executor(None, self.lane_segmenter.load)
         self.source.start()
         self._running = True
         self._tasks = [
@@ -126,12 +163,18 @@ class CameraPipeline:
                 )
                 latency_ms = (time.perf_counter() - started) * 1000.0
 
+                # Auxiliary models run on their own cadence; their last results
+                # are cached and re-attached below so every message is complete.
+                await self._maybe_run_auxiliary(loop, frame, tick)
+
                 message = DetectionMessage(
                     cameraId=self.camera.camera_id,
                     timestamp=int(frame.capture_ts * 1000),
                     frameWidth=frame.width,
                     frameHeight=frame.height,
                     objects=objects,
+                    potholes=self._latest_potholes,
+                    lanes=self._latest_lanes,
                 )
                 self._latest_detection = message
                 self.metrics.record_detection(latency_ms, len(objects))
@@ -142,6 +185,35 @@ class CameraPipeline:
             # Pace to the configured detection FPS without drift.
             elapsed = time.perf_counter() - tick
             await asyncio.sleep(max(0.0, interval - elapsed))
+
+    async def _maybe_run_auxiliary(
+        self, loop: asyncio.AbstractEventLoop, frame, now: float
+    ) -> None:
+        """Refresh pothole/lane caches when their refresh interval has elapsed.
+
+        Cadence is wall-clock based (``*_refresh_seconds``) so it is independent
+        of DETECTION_FPS and the camera frame rate. Both run in the worker-thread
+        executor (blocking torch inference) and only when enabled and due, so the
+        per-tick cost stays low and ingestion is never blocked. ``now`` is a
+        ``perf_counter`` timestamp shared with the loop's pacing clock.
+        """
+        if (
+            self.pothole_detector is not None
+            and now - self._last_pothole_ts >= self._settings.pothole_refresh_seconds
+        ):
+            self._last_pothole_ts = now
+            self._latest_potholes = await loop.run_in_executor(
+                None, self.pothole_detector.detect, frame, self.camera.camera_id
+            )
+
+        if (
+            self.lane_segmenter is not None
+            and now - self._last_lane_ts >= self._settings.lane_refresh_seconds
+        ):
+            self._last_lane_ts = now
+            self._latest_lanes = await loop.run_in_executor(
+                None, self.lane_segmenter.detect, frame, self.camera.camera_id
+            )
 
     # ------------------------------------------------------------------ #
     # Metrics loop

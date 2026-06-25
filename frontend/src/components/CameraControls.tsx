@@ -1,5 +1,5 @@
 /**
- * Source controls overlaid on the video.
+ * Source controls shown as a bar below the video stream.
  *
  * Lets a developer switch between the production MediaMTX WebRTC stream and
  * "Browser Camera Mode" (publish this device's webcam straight to the backend).
@@ -56,7 +56,7 @@ export function CameraControls() {
   };
 
   return (
-    <div className="absolute bottom-[42px] left-10 z-50 flex flex-wrap items-center gap-2">
+    <div className="flex flex-shrink-0 flex-wrap items-center gap-2 px-1">
       {browserLive ? (
         <button
           onClick={stopBrowserCamera}

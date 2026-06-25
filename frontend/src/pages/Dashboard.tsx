@@ -10,8 +10,9 @@
  * Opens the video (WebRTC) and both WebSocket channels independently.
  *
  * On mobile the side panels collapse into a single tabbed view (Detections /
- * Metrics / Alerts) stacked under a 16:9 video, and the front/back camera
- * switch lives on the video itself (see CameraControls).
+ * Metrics / Alerts) stacked under a 16:9 video. The camera source controls
+ * (start/stop, front/back switch) sit in a bar directly below the video on all
+ * sizes (see CameraControls).
  */
 
 import { useState } from "react";
@@ -23,6 +24,7 @@ import { useStore } from "@/store/useStore";
 import { StatusBar } from "@/components/StatusBar";
 import { BackendBanner } from "@/components/BackendBanner";
 import { VideoCanvas } from "@/components/VideoCanvas";
+import { CameraControls } from "@/components/CameraControls";
 import { MetricsPanel } from "@/components/MetricsPanel";
 import { DetectionsList } from "@/components/DetectionsList";
 import { AlertsPanel } from "@/components/AlertsPanel";
@@ -96,15 +98,18 @@ export function Dashboard() {
             : "grid min-h-0 flex-1 grid-cols-[1fr_340px] gap-4 overflow-hidden p-4"
         }
       >
-        {/* Video + overlay */}
+        {/* Video + overlay, with source controls below the stream. */}
         <div
           className={
             isMobile
-              ? "aspect-video w-full flex-shrink-0"
-              : "flex min-h-0 min-w-0 flex-col"
+              ? "flex w-full flex-shrink-0 flex-col gap-2"
+              : "flex min-h-0 min-w-0 flex-col gap-2"
           }
         >
-          <VideoCanvas />
+          <div className={isMobile ? "aspect-video w-full" : "min-h-0 flex-1"}>
+            <VideoCanvas />
+          </div>
+          <CameraControls />
         </div>
 
         {/* Side panels */}

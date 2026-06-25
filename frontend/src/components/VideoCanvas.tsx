@@ -21,7 +21,6 @@ import { formatUptime } from "@/services/format";
 import { config } from "@/services/config";
 import { useStore } from "@/store/useStore";
 import { VideoStatusOverlay } from "./VideoStatusOverlay";
-import { CameraControls } from "./CameraControls";
 
 /** One L-shaped HUD corner bracket. `pos` picks which corner. */
 function Corner({ pos }: { pos: "tl" | "tr" | "bl" | "br" }) {
@@ -161,9 +160,6 @@ export function VideoCanvas() {
         <span className="font-mono text-[10px] text-accent/50">{cameraId}</span>
         <span className="font-mono text-[9px] text-white/20">1920×1080</span>
       </div>
-
-      {/* Camera source + front/back controls. */}
-      <CameraControls />
 
       <VideoStatusOverlay />
     </div>

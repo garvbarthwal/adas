@@ -15,8 +15,13 @@
  *   - distance: render a distance annotation under each box
  */
 
-import type { DetectedObject, DetectionMessage } from "@/types";
-import { classColor } from "@/services/format";
+import type {
+  DetectedObject,
+  DetectionMessage,
+  LaneSegment,
+  PotholeObject,
+} from "@/types";
+import { classColor, laneColor, POTHOLE_COLOR } from "@/services/format";
 
 /** The rectangle the video actually occupies inside its element (contain). */
 interface RenderRect {
@@ -86,7 +91,7 @@ export function drawDetections(
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, displayW, displayH);
 
-  if (!detection || detection.objects.length === 0) return;
+  if (!detection) return;
 
   const rect = computeRenderRect(
     video,
@@ -96,9 +101,83 @@ export function drawDetections(
     displayH,
   );
 
+  // Draw order: lanes (road surface) → potholes (hazards) → objects (on top).
+  for (const lane of detection.lanes ?? []) {
+    drawLane(ctx, lane, rect);
+  }
+  for (const pothole of detection.potholes ?? []) {
+    drawPothole(ctx, pothole, rect, opts);
+  }
   for (const obj of detection.objects) {
     drawBox(ctx, obj, rect, opts);
   }
+}
+
+/** Draw a lane-line polygon as a polyline (dashed for broken lanes). */
+function drawLane(
+  ctx: CanvasRenderingContext2D,
+  lane: LaneSegment,
+  rect: RenderRect,
+): void {
+  if (!lane.points || lane.points.length < 2) return;
+
+  const color = laneColor(lane.class);
+  const broken = lane.class.toLowerCase().includes("broken");
+
+  ctx.save();
+  ctx.beginPath();
+  for (let i = 0; i < lane.points.length; i++) {
+    const [px, py] = lane.points[i];
+    const x = rect.offsetX + px * rect.scaleX;
+    const y = rect.offsetY + py * rect.scaleY;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+
+  // Translucent fill so the lane region reads as a band, plus a crisp outline.
+  ctx.fillStyle = color + "22"; // ~13% alpha
+  ctx.fill();
+
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = color;
+  if (broken) ctx.setLineDash([12, 8]);
+  ctx.stroke();
+  ctx.restore();
+}
+
+/** Draw a pothole as a hazard-red box with a POTHOLE label. */
+function drawPothole(
+  ctx: CanvasRenderingContext2D,
+  pothole: PotholeObject,
+  rect: RenderRect,
+  opts: DrawOptions,
+): void {
+  const x = rect.offsetX + pothole.x1 * rect.scaleX;
+  const y = rect.offsetY + pothole.y1 * rect.scaleY;
+  const w = (pothole.x2 - pothole.x1) * rect.scaleX;
+  const h = (pothole.y2 - pothole.y1) * rect.scaleY;
+
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = POTHOLE_COLOR;
+  ctx.strokeRect(x, y, w, h);
+
+  const label = opts.showConfidence
+    ? `POTHOLE ${Math.round(pothole.confidence * 100)}%`
+    : "POTHOLE";
+
+  ctx.font = "700 12px ui-monospace, monospace";
+  const padding = 4;
+  const textW = ctx.measureText(label).width;
+  const labelH = 16;
+  const labelY = y - labelH >= 0 ? y - labelH : y;
+
+  ctx.fillStyle = POTHOLE_COLOR;
+  ctx.fillRect(x, labelY, textW + padding * 2, labelH);
+
+  ctx.fillStyle = "#fff";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, x + padding, labelY + labelH / 2);
 }
 
 function drawBox(

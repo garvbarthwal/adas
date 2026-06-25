@@ -18,6 +18,14 @@ export function classColor(cls: string): string {
   return CLASS_COLORS[cls.toLowerCase()] ?? "#94a3b8";
 }
 
+/** Potholes are drawn in a hazard red regardless of class. */
+export const POTHOLE_COLOR = "#ef4444";
+
+/** Lane-line colour by class — broken vs solid get distinct hues. */
+export function laneColor(cls: string): string {
+  return cls.toLowerCase().includes("broken") ? "#a3e635" : "#22d3ee";
+}
+
 /** Colour a confidence percentage: green ≥ 80, amber ≥ 60, red below. */
 export function confidenceColor(conf: number): string {
   const pct = conf <= 1 ? conf * 100 : conf;

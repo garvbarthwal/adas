@@ -16,6 +16,23 @@ export interface DetectedObject {
   y2: number;
 }
 
+/** A detected pothole (static road hazard, no tracking id). Coords in source-frame px. */
+export interface PotholeObject {
+  confidence: number;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+}
+
+/** A lane-line segmentation polygon. `points` are [x, y] pairs in source-frame px. */
+export interface LaneSegment {
+  /** Lane class, e.g. "Solid_Line_Lane" or "Broken_Line_Lane". */
+  class: string;
+  confidence: number;
+  points: [number, number][];
+}
+
 /** Payload from `/ws/detections`. */
 export interface DetectionMessage {
   cameraId: string;
@@ -24,6 +41,10 @@ export interface DetectionMessage {
   frameWidth: number;
   frameHeight: number;
   objects: DetectedObject[];
+  /** Latest potholes (refreshed on a slower cadence, re-sent every frame). */
+  potholes: PotholeObject[];
+  /** Latest lane-line polygons (refreshed on a slower cadence, re-sent every frame). */
+  lanes: LaneSegment[];
 }
 
 export type StreamStatus = "online" | "offline" | "connecting";

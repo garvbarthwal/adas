@@ -6,9 +6,9 @@ cheap. Potholes are static, so this detector does no tracking; it just returns
 boxes in full source-frame pixels (the ROI offset is added back here so callers
 never deal with ROI-local coordinates).
 
-Run on a slower cadence than object detection (see
-:class:`app.services.pipeline.CameraPipeline`): potholes don't move, so refreshing
-them a couple of times per second is plenty.
+Run every detection frame (see :class:`app.services.pipeline.CameraPipeline`),
+on the same frame as object detection, so hazards stay glued to the live scene.
+The reduced ROI + ``imgsz`` keep it cheap enough to do every tick.
 """
 
 from __future__ import annotations

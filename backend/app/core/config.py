@@ -93,16 +93,16 @@ class Settings(BaseSettings):
     device: str = Field(default="cpu")
 
     # ----- Auxiliary models (potholes + lanes) ------------------------------
-    # These run on a *slower* cadence than object detection, expressed in
-    # wall-clock seconds so it is independent of DETECTION_FPS and the camera's
-    # frame rate. Their latest results are cached and attached to every detection
-    # message so the frontend always has the full scene to draw between refreshes.
+    # Potholes run every detection frame. Lanes run on a *slower* wall-clock
+    # cadence (``lane_refresh_seconds``, independent of DETECTION_FPS) since
+    # lane markings are static; their latest result is cached and attached to
+    # every detection message so the frontend always has the full scene.
 
     # Pothole detection (dedicated single-class model on the road ROI).
+    # Runs every detection frame (same cadence as object detection) so hazards
+    # track the live scene; kept cheap via the reduced ROI + imgsz below.
     enable_pothole: bool = Field(default=True)
     pothole_model: str = Field(default="potholes.pt")
-    # How often to re-detect potholes (seconds). They're static, so ~2s is plenty.
-    pothole_refresh_seconds: float = Field(default=2.0)
     # Reduced inference size — potholes are large/near, so 320 is plenty.
     pothole_imgsz: int = Field(default=320)
     pothole_confidence: float = Field(default=0.35)

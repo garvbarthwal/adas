@@ -55,6 +55,7 @@ class YoloDetector(UltralyticsDetector, Detector):
                 iou=self._iou,
                 tracker=self._tracker,
                 device=self._device,
+                imgsz=416,
                 verbose=False,
             )
 

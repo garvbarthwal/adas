@@ -7,6 +7,11 @@ routes plus the two independent WebSocket channels.
 
 from __future__ import annotations
 
+import os
+os.environ["OMP_NUM_THREADS"] = "2"
+os.environ["MKL_NUM_THREADS"] = "2"
+os.environ["OPENBLAS_NUM_THREADS"] = "2"
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI

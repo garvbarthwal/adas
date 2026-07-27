@@ -22,12 +22,7 @@ class CameraConfig(BaseModel):
     """
 
     camera_id: str = Field(description="Stable, unique camera identifier, e.g. 'carcam1'.")
-    stream_url: str = Field(description="RTSP URL exposed by MediaMTX for this camera.")
     name: str = Field(default="", description="Human friendly display name.")
-    # Per-camera ingest override; falls back to the global INGEST_MODE.
-    #   "rtsp"   — pull RTSP from MediaMTX (production / Raspberry Pi)
-    #   "webrtc" — receive frames published directly from a browser (dev)
-    ingest_mode: str | None = Field(default=None)
 
     def resolved_name(self) -> str:
         return self.name or self.camera_id
@@ -55,18 +50,7 @@ class Settings(BaseSettings):
     # CORS origins allowed to talk to this API (comma separated in env).
     cors_origins: str = Field(default="*")
 
-    # ----- Stream ingestion -------------------------------------------------
-    # RTSP URL exposed by MediaMTX. In development the laptop/Pi publishes to
-    # MediaMTX which the backend then consumes over loopback. This pair defines
-    # the *default* single-camera pipeline.
-    stream_url: str = Field(default="rtsp://localhost:8554/carcam")
     camera_id: str = Field(default="carcam")
-
-    # Frame ingest mode for all cameras (override per-camera in CAMERAS):
-    #   "rtsp"   — production: RTSP from MediaMTX.
-    #   "webrtc" — development: browsers publish their webcam directly to the
-    #              backend (Browser Camera Mode), no FFmpeg / MediaMTX needed.
-    ingest_mode: str = Field(default="rtsp")
 
     # Optional multi-camera configuration. When set, this JSON array fully
     # overrides the single-camera pair above, e.g.:
@@ -119,6 +103,11 @@ class Settings(BaseSettings):
     # Keep every Nth lane polygon vertex to keep the WS payload small.
     lane_point_stride: int = Field(default=3)
 
+    # ----- Hardware Integrations --------------------------------------------
+    # The serial port for the LD2410 radar (e.g. "/dev/ttyUSB0" or "COM3").
+    # If "auto", the backend will scan available serial ports to find it.
+    radar_port: str = Field(default="auto")
+
     @property
     def cors_origin_list(self) -> list[str]:
         """Parse the comma separated CORS origins into a list."""
@@ -130,15 +119,11 @@ class Settings(BaseSettings):
         return 1.0 / max(self.detection_fps, 1)
 
     def camera_configs(self) -> list[CameraConfig]:
-        """Return the list of cameras to run.
-
-        Uses ``CAMERAS`` (a JSON array) when provided, otherwise falls back to
-        the single default camera defined by ``STREAM_URL`` / ``CAMERA_ID``.
-        """
+        """Return the list of cameras to run."""
         if self.cameras.strip():
             raw = json.loads(self.cameras)
             return [CameraConfig(**item) for item in raw]
-        return [CameraConfig(camera_id=self.camera_id, stream_url=self.stream_url)]
+        return [CameraConfig(camera_id=self.camera_id)]
 
 
 @lru_cache

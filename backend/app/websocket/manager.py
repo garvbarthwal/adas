@@ -12,6 +12,7 @@ dashboard showing one camera today and several tomorrow.
 from __future__ import annotations
 
 import asyncio
+import msgpack
 
 from fastapi import WebSocket
 
@@ -25,14 +26,18 @@ class ConnectionManager:
 
     def __init__(self, channel: str) -> None:
         self._channel = channel
-        # Map of websocket -> camera filter (None == all cameras).
-        self._clients: dict[WebSocket, str | None] = {}
+        # Map of websocket -> dict with camera_id and queue.
+        self._clients: dict[WebSocket, dict] = {}
+        self._max_queue = 3
+        self._tasks: dict[WebSocket, asyncio.Task] = {}
         self._lock = asyncio.Lock()
 
     async def connect(self, websocket: WebSocket, camera_id: str | None) -> None:
         await websocket.accept()
+        queue = asyncio.Queue(maxsize=self._max_queue)
         async with self._lock:
-            self._clients[websocket] = camera_id
+            self._clients[websocket] = {"camera_id": camera_id, "queue": queue}
+            self._tasks[websocket] = asyncio.create_task(self._drain(websocket, queue))
         logger.info(
             "WS client connected",
             extra={"channel": self._channel, "camera_id": camera_id,
@@ -42,10 +47,21 @@ class ConnectionManager:
     async def disconnect(self, websocket: WebSocket) -> None:
         async with self._lock:
             self._clients.pop(websocket, None)
+            task = self._tasks.pop(websocket, None)
+            if task:
+                task.cancel()
         logger.info(
             "WS client disconnected",
             extra={"channel": self._channel, "clients": len(self._clients)},
         )
+
+    async def _drain(self, websocket: WebSocket, queue: asyncio.Queue) -> None:
+        while True:
+            try:
+                data = await queue.get()
+                await websocket.send_bytes(data)
+            except Exception:
+                break
 
     @property
     def client_count(self) -> int:
@@ -54,32 +70,28 @@ class ConnectionManager:
     async def broadcast(self, camera_id: str, payload: dict) -> None:
         """Send ``payload`` to every client subscribed to ``camera_id`` (or all).
 
-        Dead sockets are pruned. Sends run concurrently so one slow client can't
-        stall the others.
+        Dead sockets are pruned by the drain task which exits on error,
+        and then the manager handles cleanup during the explicit disconnect.
         """
+        data = msgpack.packb(payload)
         async with self._lock:
             targets = [
-                ws
-                for ws, sub in self._clients.items()
-                if sub is None or sub == camera_id
+                info["queue"]
+                for ws, info in self._clients.items()
+                if info["camera_id"] is None or info["camera_id"] == camera_id
             ]
         if not targets:
             return
 
-        results = await asyncio.gather(
-            *(self._safe_send(ws, payload) for ws in targets),
-            return_exceptions=True,
-        )
-        dead = [ws for ws, ok in zip(targets, results) if ok is not True]
-        if dead:
-            async with self._lock:
-                for ws in dead:
-                    self._clients.pop(ws, None)
-
-    @staticmethod
-    async def _safe_send(websocket: WebSocket, payload: dict) -> bool:
-        try:
-            await websocket.send_json(payload)
-            return True
-        except Exception:  # noqa: BLE001 - any failure means drop the client
-            return False
+        for queue in targets:
+            try:
+                queue.put_nowait(data)
+            except asyncio.QueueFull:
+                try:
+                    queue.get_nowait()
+                except asyncio.QueueEmpty:
+                    pass
+                try:
+                    queue.put_nowait(data)
+                except asyncio.QueueFull:
+                    pass

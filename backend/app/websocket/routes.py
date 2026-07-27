@@ -54,3 +54,37 @@ async def ws_metrics(
 ) -> None:
     """Stream system / stream health metrics for one or all cameras."""
     await _serve(websocket, "metrics", cameraId)
+
+import asyncio
+
+@router.websocket("/ws/radar-stream")
+async def ws_radar_stream(websocket: WebSocket) -> None:
+    """Bi-directional proxy for Web Serial radar data."""
+    await websocket.accept()
+    manager = websocket.app.state.manager
+    radar_service = manager.radar_service
+    
+    if not radar_service:
+        await websocket.close()
+        return
+
+    async def send_outgoing():
+        try:
+            while True:
+                data = await radar_service.get_outgoing_bytes()
+                await websocket.send_bytes(data)
+        except Exception:
+            pass
+
+    sender_task = asyncio.create_task(send_outgoing())
+    
+    try:
+        while True:
+            data = await websocket.receive_bytes()
+            radar_service.feed(data)
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.warning(f"Radar stream error: {e}")
+    finally:
+        sender_task.cancel()

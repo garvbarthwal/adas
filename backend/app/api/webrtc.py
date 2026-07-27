@@ -90,11 +90,7 @@ async def ingest(
 # closed cleanly on shutdown).
 # --------------------------------------------------------------------------- #
 def _register_pc(request: Request, pc) -> None:  # noqa: ANN001
-    pcs = getattr(request.app.state, "ingest_pcs", None)
-    if pcs is None:
-        pcs = set()
-        request.app.state.ingest_pcs = pcs
-    pcs.add(pc)
+    request.app.state.ingest_pcs.add(pc)
 
 
 async def _close_pc(request: Request, pc) -> None:  # noqa: ANN001

@@ -20,11 +20,19 @@ WORKDIR /app
 
 # Install deps first for better layer caching.
 COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+RUN pip install --upgrade pip && \
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+    pip install -r requirements.txt
+RUN pip install onnxruntime-gpu==1.17.1 onnxscript==0.1.0
 
 # Pre-download the default model weights at build time so the first request is
 # not delayed by a network download (override MODEL at runtime if needed).
 RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
+
+COPY *.pt .
+RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx', imgsz=640)"
+RUN python -c "from ultralytics import YOLO; YOLO('potholes.pt').export(format='onnx', imgsz=320)"
+RUN python -c "from ultralytics import YOLO; YOLO('best_lane.pt').export(format='onnx', imgsz=384)"
 
 COPY app ./app
 

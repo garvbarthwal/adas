@@ -16,13 +16,15 @@ from __future__ import annotations
 import threading
 
 from app.core.logging import get_logger
+from app.detectors.base import UltralyticsDetector
+from app.detectors.utils import extract_boxes
 from app.models.frame import Frame
 from app.schemas.detection import PotholeObject
 
 logger = get_logger(__name__)
 
 
-class PotholeDetector:
+class PotholeDetector(UltralyticsDetector):
     """Ultralytics detector for road potholes, run on a lower-frame ROI."""
 
     def __init__(
@@ -34,30 +36,15 @@ class PotholeDetector:
         roi_top: float = 0.6,
         device: str = "cpu",
     ) -> None:
-        self._model_path = model_path
-        self._confidence = confidence
-        self._iou = iou
+        super().__init__(
+            model_path=model_path,
+            confidence=confidence,
+            iou=iou,
+            device=device,
+        )
         self._imgsz = imgsz
         # Fraction of the frame height where the road ROI starts (0.6 => lower 40%).
         self._roi_top = roi_top
-        self._device = device
-
-        self._model = None  # type: ignore[assignment]
-        self._ready = False
-        # Inference is not thread-safe; serialize calls per detector instance.
-        self._lock = threading.Lock()
-
-    def load(self) -> None:
-        from ultralytics import YOLO
-
-        logger.info("Loading pothole model", extra={"model": self._model_path})
-        self._model = YOLO(self._model_path)
-        self._ready = True
-        logger.info("Pothole model loaded")
-
-    @property
-    def is_ready(self) -> bool:
-        return self._ready
 
     def detect(self, frame: Frame, camera_id: str) -> list[PotholeObject]:
         if not self._ready or self._model is None:
@@ -88,19 +75,16 @@ class PotholeDetector:
         Coordinates come back in ROI-local pixels; ``roi_start`` is added to y so
         the returned boxes are in full source-frame space.
         """
-        boxes = getattr(result, "boxes", None)
-        if boxes is None or boxes.xyxy is None or len(boxes) == 0:
+        extracted = extract_boxes(result)
+        if extracted is None:
             return []
 
-        xyxy = boxes.xyxy.cpu().numpy()
-        confs = boxes.conf.cpu().numpy() if boxes.conf is not None else []
-
         potholes: list[PotholeObject] = []
-        for i in range(len(xyxy)):
-            x1, y1, x2, y2 = xyxy[i]
+        for i in range(len(extracted.xyxy)):
+            x1, y1, x2, y2 = extracted.xyxy[i]
             potholes.append(
                 PotholeObject(
-                    confidence=round(float(confs[i]) if len(confs) else 0.0, 3),
+                    confidence=round(float(extracted.confs[i]) if len(extracted.confs) else 0.0, 3),
                     x1=int(x1),
                     y1=int(y1) + roi_start,
                     x2=int(x2),

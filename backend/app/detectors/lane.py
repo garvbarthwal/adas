@@ -15,13 +15,15 @@ from __future__ import annotations
 import threading
 
 from app.core.logging import get_logger
+from app.detectors.base import UltralyticsDetector
+from app.detectors.utils import extract_boxes
 from app.models.frame import Frame
 from app.schemas.detection import LaneSegment
 
 logger = get_logger(__name__)
 
 
-class LaneSegmenter:
+class LaneSegmenter(UltralyticsDetector):
     """Ultralytics segmentation model for lane lines."""
 
     def __init__(
@@ -32,31 +34,15 @@ class LaneSegmenter:
         device: str = "cpu",
         point_stride: int = 3,
     ) -> None:
-        self._model_path = model_path
-        self._confidence = confidence
+        super().__init__(
+            model_path=model_path,
+            confidence=confidence,
+            device=device,
+        )
         self._imgsz = imgsz
-        self._device = device
         # Keep every Nth polygon vertex to shrink the WS payload; the shape is
         # visually identical at display scale.
         self._point_stride = max(1, point_stride)
-
-        self._model = None  # type: ignore[assignment]
-        self._names: dict[int, str] = {}
-        self._ready = False
-        self._lock = threading.Lock()
-
-    def load(self) -> None:
-        from ultralytics import YOLO
-
-        logger.info("Loading lane model", extra={"model": self._model_path})
-        self._model = YOLO(self._model_path)
-        self._names = dict(self._model.names)
-        self._ready = True
-        logger.info("Lane model loaded", extra={"classes": len(self._names)})
-
-    @property
-    def is_ready(self) -> bool:
-        return self._ready
 
     def detect(self, frame: Frame, camera_id: str) -> list[LaneSegment]:
         if not self._ready or self._model is None:
@@ -78,14 +64,12 @@ class LaneSegmenter:
     def _parse(self, result) -> list[LaneSegment]:
         """Convert segmentation masks into wire-contract lane polygons."""
         masks = getattr(result, "masks", None)
-        boxes = getattr(result, "boxes", None)
-        if masks is None or boxes is None or len(boxes) == 0:
+        extracted = extract_boxes(result)
+        if masks is None or extracted is None:
             return []
 
         # masks.xy is a list of (N, 2) float arrays in original-frame pixels.
         polygons = masks.xy
-        confs = boxes.conf.cpu().numpy() if boxes.conf is not None else []
-        clss = boxes.cls.cpu().numpy() if boxes.cls is not None else []
 
         lanes: list[LaneSegment] = []
         for i, poly in enumerate(polygons):
@@ -94,11 +78,11 @@ class LaneSegmenter:
             pts = [[int(x), int(y)] for x, y in poly[:: self._point_stride]]
             if len(pts) < 2:
                 continue
-            cls_idx = int(clss[i]) if len(clss) > i else -1
+            cls_idx = int(extracted.clss[i]) if len(extracted.clss) > i else -1
             lanes.append(
                 LaneSegment(
                     **{"class": self._names.get(cls_idx, str(cls_idx))},
-                    confidence=round(float(confs[i]) if len(confs) > i else 0.0, 3),
+                    confidence=round(float(extracted.confs[i]) if len(extracted.confs) > i else 0.0, 3),
                     points=pts,
                 )
             )

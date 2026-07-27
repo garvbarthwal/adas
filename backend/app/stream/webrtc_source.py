@@ -16,7 +16,6 @@ production RTSP deployment never needs those dependencies installed.
 from __future__ import annotations
 
 import asyncio
-import time
 
 from app.core.logging import get_logger
 from app.models.frame import Frame
@@ -29,16 +28,11 @@ class WebRTCFrameSource(FrameSource):
     """Latest-frame-only source fed by an inbound WebRTC video track."""
 
     def __init__(self, camera_id: str, stale_after: float = 5.0) -> None:
+        super().__init__(stale_after=stale_after)
         self.camera_id = camera_id
-        self._stale_after = stale_after
 
-        self._latest: Frame | None = None
-        self._sequence = 0
         self._consume_task: asyncio.Task | None = None
         self._connected = False
-
-        self._fps = 0.0
-        self._frame_times: list[float] = []
 
     # ------------------------------------------------------------------ #
     # FrameSource lifecycle
@@ -92,18 +86,11 @@ class WebRTCFrameSource(FrameSource):
     # ------------------------------------------------------------------ #
     # Consumer API
     # ------------------------------------------------------------------ #
-    def get_latest(self) -> Frame | None:
-        return self._latest
-
-    @property
-    def fps(self) -> float:
-        return round(self._fps, 1)
-
     @property
     def is_online(self) -> bool:
-        if not self._connected or self._latest is None:
+        if not self._connected:
             return False
-        return (time.time() - self._latest.capture_ts) <= self._stale_after
+        return super().is_online
 
     @property
     def status(self) -> str:
@@ -111,19 +98,4 @@ class WebRTCFrameSource(FrameSource):
             return "online"
         return "connecting"  # waiting for / reconnecting a browser publisher
 
-    # ------------------------------------------------------------------ #
-    # Internal
-    # ------------------------------------------------------------------ #
-    def _store(self, image) -> None:
-        self._sequence += 1
-        # Replacing the reference is atomic; the executor may hold an older
-        # Frame object safely while we publish a newer one.
-        self._latest = Frame(image=image, sequence=self._sequence)
-        self._update_fps()
 
-    def _update_fps(self) -> None:
-        now = time.time()
-        self._frame_times.append(now)
-        cutoff = now - 1.0
-        self._frame_times = [t for t in self._frame_times if t >= cutoff]
-        self._fps = float(len(self._frame_times))

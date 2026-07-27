@@ -16,8 +16,11 @@ from app.api.routes import router as api_router
 from app.api.webrtc import router as webrtc_router
 from app.core.config import get_settings
 from app.core.logging import configure_logging, get_logger
+from app.api.radar import router as radar_router
 from app.services.manager import PipelineManager
 from app.websocket.routes import router as ws_router
+
+APP_VERSION = "1.0.0"
 
 settings = get_settings()
 configure_logging(
@@ -48,7 +51,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title=settings.app_name,
-    version="1.0.0",
+    version=APP_VERSION,
     description="Real-time multi-camera object detection platform (YOLOv8 + ByteTrack).",
     lifespan=lifespan,
 )
@@ -64,9 +67,10 @@ app.add_middleware(
 app.include_router(api_router)
 app.include_router(webrtc_router)
 app.include_router(ws_router)
+app.include_router(radar_router, prefix="/radar")
 
 
 @app.get("/", tags=["system"])
 def root() -> dict[str, str]:
     """Service banner."""
-    return {"service": settings.app_name, "version": "1.0.0", "status": "ok"}
+    return {"service": settings.app_name, "version": APP_VERSION, "status": "ok"}

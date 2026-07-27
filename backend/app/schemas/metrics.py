@@ -38,7 +38,6 @@ class StreamInfo(BaseModel):
 
     cameraId: str
     name: str
-    streamUrl: str
     status: StreamStatus
     streamFps: float
     detectionFps: float

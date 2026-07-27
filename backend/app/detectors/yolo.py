@@ -14,14 +14,15 @@ from __future__ import annotations
 import threading
 
 from app.core.logging import get_logger
-from app.detectors.base import Detector
+from app.detectors.base import Detector, UltralyticsDetector
+from app.detectors.utils import extract_boxes
 from app.models.frame import Frame
 from app.schemas.detection import DetectedObject
 
 logger = get_logger(__name__)
 
 
-class YoloDetector(Detector):
+class YoloDetector(UltralyticsDetector, Detector):
     """Ultralytics YOLOv8 + ByteTrack detector."""
 
     def __init__(
@@ -32,32 +33,13 @@ class YoloDetector(Detector):
         tracker: str = "bytetrack.yaml",
         device: str = "cpu",
     ) -> None:
-        self._model_path = model_path
-        self._confidence = confidence
-        self._iou = iou
+        super().__init__(
+            model_path=model_path,
+            confidence=confidence,
+            iou=iou,
+            device=device,
+        )
         self._tracker = tracker
-        self._device = device
-
-        self._model = None  # type: ignore[assignment]
-        self._names: dict[int, str] = {}
-        self._ready = False
-        # Inference is not thread-safe; serialize calls per detector instance.
-        self._lock = threading.Lock()
-
-    def load(self) -> None:
-        # Imported lazily so the module imports cheaply (and unit tests / health
-        # tooling don't pull in torch unless detection is actually used).
-        from ultralytics import YOLO
-
-        logger.info("Loading YOLO model", extra={"model": self._model_path})
-        self._model = YOLO(self._model_path)
-        self._names = dict(self._model.names)
-        self._ready = True
-        logger.info("YOLO model loaded", extra={"classes": len(self._names)})
-
-    @property
-    def is_ready(self) -> bool:
-        return self._ready
 
     def detect(self, frame: Frame, camera_id: str) -> list[DetectedObject]:
         if not self._ready or self._model is None:
@@ -82,28 +64,20 @@ class YoloDetector(Detector):
 
     def _parse(self, result) -> list[DetectedObject]:
         """Convert an Ultralytics result into wire-contract objects."""
-        boxes = getattr(result, "boxes", None)
-        if boxes is None or boxes.xyxy is None or len(boxes) == 0:
+        extracted = extract_boxes(result, with_ids=True)
+        if extracted is None:
             return []
 
-        xyxy = boxes.xyxy.cpu().numpy()
-        confs = boxes.conf.cpu().numpy() if boxes.conf is not None else []
-        clss = boxes.cls.cpu().numpy() if boxes.cls is not None else []
-        ids = (
-            boxes.id.cpu().numpy()
-            if getattr(boxes, "id", None) is not None
-            else [None] * len(xyxy)
-        )
-
         objects: list[DetectedObject] = []
-        for i in range(len(xyxy)):
-            x1, y1, x2, y2 = xyxy[i]
-            cls_idx = int(clss[i]) if len(clss) else -1
+        for i in range(len(extracted.xyxy)):
+            x1, y1, x2, y2 = extracted.xyxy[i]
+            cls_idx = int(extracted.clss[i]) if len(extracted.clss) else -1
+            track_id = int(extracted.ids[i]) if extracted.ids is not None and extracted.ids[i] is not None else -1
             objects.append(
                 DetectedObject(
-                    id=int(ids[i]) if ids[i] is not None else -1,
+                    id=track_id,
                     **{"class": self._names.get(cls_idx, str(cls_idx))},
-                    confidence=round(float(confs[i]) if len(confs) else 0.0, 3),
+                    confidence=round(float(extracted.confs[i]) if len(extracted.confs) else 0.0, 3),
                     x1=int(x1),
                     y1=int(y1),
                     x2=int(x2),

@@ -20,6 +20,7 @@ class DetectedObject(BaseModel):
     y1: int = Field(description="Top-left y in source-frame pixels.")
     x2: int = Field(description="Bottom-right x in source-frame pixels.")
     y2: int = Field(description="Bottom-right y in source-frame pixels.")
+    radar_distance: float | None = Field(default=None, description="Physical distance in meters from radar.")
 
     model_config = {"populate_by_name": True}
 
@@ -80,3 +81,4 @@ class DetectionMessage(BaseModel):
     objects: list[DetectedObject] = Field(default_factory=list)
     potholes: list[PotholeObject] = Field(default_factory=list)
     lanes: list[LaneSegment] = Field(default_factory=list)
+    alerts: list[str] = Field(default_factory=list, description="Active system alerts.")

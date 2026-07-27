@@ -65,7 +65,7 @@ class Settings(BaseSettings):
     stream_stale_after: float = Field(default=5.0)
 
     # ----- Detection engine -------------------------------------------------
-    model: str = Field(default="yolov8n.pt")
+    model: str = Field(default="yolov8n.onnx")
     # Detection cadence. The camera may run at 30 FPS but we only sample the
     # latest frame this many times per second to keep latency low.
     detection_fps: int = Field(default=10)
@@ -86,7 +86,7 @@ class Settings(BaseSettings):
     # Runs every detection frame (same cadence as object detection) so hazards
     # track the live scene; kept cheap via the reduced ROI + imgsz below.
     enable_pothole: bool = Field(default=True)
-    pothole_model: str = Field(default="potholes.pt")
+    pothole_model: str = Field(default="potholes.onnx")
     # Reduced inference size — potholes are large/near, so 320 is plenty.
     pothole_imgsz: int = Field(default=320)
     pothole_confidence: float = Field(default=0.35)
@@ -95,7 +95,7 @@ class Settings(BaseSettings):
 
     # Lane-line segmentation (runs on the full frame at reduced imgsz).
     enable_lane: bool = Field(default=True)
-    lane_model: str = Field(default="best_lane.pt")
+    lane_model: str = Field(default="best_lane.onnx")
     # How often to re-segment lanes (seconds).
     lane_refresh_seconds: float = Field(default=1.0)
     lane_imgsz: int = Field(default=384)

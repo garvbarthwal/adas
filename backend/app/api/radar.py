@@ -1,6 +1,5 @@
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
-import serial.tools.list_ports
 
 from app.api.deps import get_manager
 from app.services.manager import PipelineManager

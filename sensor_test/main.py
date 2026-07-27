@@ -1,96 +1,70 @@
-import serial
-
-# -----------------------------
-# Configuration
-# -----------------------------
-PORT = "/dev/ttyUSB0"      # Linux
-# PORT = "COM5"            # Windows
-
-BAUDRATE = 256000
-
-HEADER = b"\xF4\xF3\xF2\xF1"
-FOOTER = b"\xF8\xF7\xF6\xF5"
-
-# Total bytes in a normal engineering packet
-PACKET_SIZE = 23
-
-
-def print_packet(packet: bytes):
-    """Pretty-print one packet."""
-
-    print("\n" + "=" * 60)
-    print("LD2410 Packet")
-    print("=" * 60)
-
-    print("Header :", packet[:4].hex(" ").upper())
-    print("Length :", packet[4:6].hex(" ").upper())
-    print("Payload:", packet[6:-4].hex(" ").upper())
-    print("Footer :", packet[-4:].hex(" ").upper())
-
-    print("\nRaw Packet:")
-    print(packet.hex(" ").upper())
+from ld2410 import LD2410
 
 
 def main():
 
-    print(f"Opening {PORT} @ {BAUDRATE} baud...")
-
-    ser = serial.Serial(
-        port=PORT,
-        baudrate=BAUDRATE,
-        timeout=1
-    )
-
-    print("Connected to LD2410!\n")
-
-    buffer = bytearray()
+    radar = LD2410()
 
     try:
 
-        while True:
+        firmware = radar.read_firmware()
 
-            # Read whatever bytes are currently available
-            data = ser.read(128)
+        print()
 
-            if not data:
-                continue
+        print("Firmware Information")
+        print("--------------------")
+        print("Type   :", firmware.firmware_type)
+        print("Major  :", firmware.major_version_bytes.hex())
+        print("Minor  :", firmware.minor_version_bytes.hex())
+        print("Version:", firmware.version_string)
 
-            buffer.extend(data)
+        config = radar.read_parameters()
+        print("\nConfiguration")
+        print("-------------")
+        print(f"Max distance gate: {config.max_distance_gate}")
+        print(f"Max motion gate  : {config.max_motion_distance_gate}")
+        print(f"Max station. gate: {config.max_stationary_distance_gate}")
+        print(f"Motion sens.     : {config.motion_sensitivities}")
+        print(f"Station. sens.   : {config.stationary_sensitivities}")
+        print(f"Unoccupied dur.  : {config.unoccupied_duration_s}s")
 
-            while True:
+        print("\nConfiguration Settings")
+        print("----------------------")
+        resolution = radar.get_distance_resolution()
+        print(f"Distance Res.    : {resolution} (0=0.75m, 1=0.2m)")
+        
+        try:
+            mac = radar.get_mac_address()
+            print(f"MAC Address      : {mac}")
+        except Exception as e:
+            print(f"MAC Address      : Failed ({e})")
 
-                # Search for packet header
-                start = buffer.find(HEADER)
-
-                if start == -1:
-                    # Header not found, keep only last few bytes
-                    if len(buffer) > 4:
-                        buffer = buffer[-4:]
-                    break
-
-                # Wait until full packet is available
-                if len(buffer) < start + PACKET_SIZE:
-                    break
-
-                packet = bytes(buffer[start:start + PACKET_SIZE])
-
-                # Verify footer
-                if packet[-4:] == FOOTER:
-
-                    print_packet(packet)
-
-                    # Remove processed packet
-                    buffer = buffer[start + PACKET_SIZE:]
-
-                else:
-                    # Invalid packet, discard first header byte
-                    buffer = buffer[start + 1:]
-
-    except KeyboardInterrupt:
-        print("\nStopping...")
+        print("\nEngineering Mode Test")
+        print("---------------------")
+        radar.enable_engineering_mode()
+        try:
+            print("Reading frame...")
+            frame = radar.read_frame()
+            print(f"Data type       : {frame.data_type}")
+            print(f"Target state    : {frame.target_state}")
+            print(f"Moving dist     : {frame.moving_distance}")
+            print(f"Moving energy   : {frame.moving_energy}")
+            print(f"Stationary dist : {frame.stationary_distance}")
+            print(f"Stationary eng  : {frame.stationary_energy}")
+            
+            if frame.data_type == 1: # DATA_TYPE_ENGINEERING
+                print(f"Max Move Gate   : {frame.max_moving_gate}")
+                print(f"Max Stat Gate   : {frame.max_stationary_gate}")
+                print(f"Move Energies   : {frame.moving_gate_energies}")
+                print(f"Stat Energies   : {frame.stationary_gate_energies}")
+                print(f"Extra Data      : {frame.extra_data.hex() if frame.extra_data else 'None'}")
+        finally:
+            print("Disabling engineering mode...")
+            radar.disable_engineering_mode()
 
     finally:
-        ser.close()
+
+        radar.close()
 
 
 if __name__ == "__main__":

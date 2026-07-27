@@ -89,6 +89,7 @@ class CameraPipeline:
         self._blackboard_frame_h = 0
         # perf_counter timestamp of the last lane run (0 => never run).
         self._last_lane_ts = 0.0
+        self._frame_count = 0
         self._tasks: list[asyncio.Task] = []
         self._running = False
 
@@ -161,6 +162,7 @@ class CameraPipeline:
             tick = time.perf_counter()
             frame = self.source.get_latest()
             if frame is not None:
+                self._frame_count += 1
                 max_age_ms = self._settings.detection_interval * 2000.0
                 if frame.age_ms > max_age_ms:
                     await asyncio.sleep(0.01)
@@ -176,7 +178,7 @@ class CameraPipeline:
                 if run_pothole:
                     futures.append(_safe_pothole(frame))
                 
-                run_lane = self.lane_segmenter is not None and (tick - self._last_lane_ts >= self._settings.lane_refresh_seconds)
+                run_lane = self.lane_segmenter is not None and (self._frame_count % 4 == 0)
                 if run_lane:
                     futures.append(_safe_lane(frame))
                     

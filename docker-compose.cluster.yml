@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  api-gateway:
+    image: nginx:alpine
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - cam1
+      - cam2
+
+  cam1:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - CAMERA_ID=cam1
+      - STREAM_URL=rtsp://cam1-stream
+      - PORT=8000
+
+  cam2:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - CAMERA_ID=cam2
+      - STREAM_URL=rtsp://cam2-stream
+      - PORT=8000

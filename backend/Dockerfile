@@ -29,7 +29,7 @@ RUN pip install --upgrade pip && \
 # not delayed by a network download (override MODEL at runtime if needed).
 RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt')"
 
-COPY *.pt .
+COPY *.pt ./
 RUN python -c "from ultralytics import YOLO; YOLO('yolov8n.pt').export(format='onnx', imgsz=640)"
 RUN python -c "from ultralytics import YOLO; YOLO('potholes.pt').export(format='onnx', imgsz=320)"
 RUN python -c "from ultralytics import YOLO; YOLO('best_lane.pt').export(format='onnx', imgsz=384)"

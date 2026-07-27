@@ -44,4 +44,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 
 # Single worker: the pipeline holds in-process state (latest frame, trackers).
 # Scale horizontally with more containers/cameras rather than workers.
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

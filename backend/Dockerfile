@@ -21,9 +21,9 @@ WORKDIR /app
 # Install deps first for better layer caching.
 COPY requirements.txt .
 RUN pip install --upgrade pip && \
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121 && \
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
     pip install -r requirements.txt
-RUN pip install onnxruntime-gpu==1.17.1 onnxscript==0.1.0
+RUN pip install onnxruntime==1.17.1 onnxscript==0.1.0
 
 # Pre-download the default model weights at build time so the first request is
 # not delayed by a network download (override MODEL at runtime if needed).
@@ -40,8 +40,8 @@ EXPOSE 8000
 
 # Container-level health probe hits the REST health endpoint.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
-    CMD curl -fsS http://localhost:8000/health || exit 1
+    CMD curl -fsS http://localhost:${PORT:-8000}/health || exit 1
 
 # Single worker: the pipeline holds in-process state (latest frame, trackers).
 # Scale horizontally with more containers/cameras rather than workers.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}

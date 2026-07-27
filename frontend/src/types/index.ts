@@ -14,6 +14,7 @@ export interface DetectedObject {
   y1: number;
   x2: number;
   y2: number;
+  radar_distance?: number | null;
 }
 
 /** A detected pothole (static road hazard, no tracking id). Coords in source-frame px. */
@@ -45,6 +46,8 @@ export interface DetectionMessage {
   potholes: PotholeObject[];
   /** Latest lane-line polygons (refreshed on a slower cadence, re-sent every frame). */
   lanes: LaneSegment[];
+  /** Latest system alerts (e.g. forward collision warnings). */
+  alerts?: string[];
 }
 
 export type StreamStatus = "online" | "offline" | "connecting";

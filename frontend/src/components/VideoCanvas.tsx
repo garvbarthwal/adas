@@ -13,7 +13,6 @@
  */
 
 import { useEffect, useRef } from "react";
-import { useWebRTC } from "@/hooks/useWebRTC";
 import { useBrowserCamera } from "@/hooks/useBrowserCamera";
 import { useClock } from "@/hooks/useClock";
 import { drawDetections } from "@/services/overlay";
@@ -38,13 +37,11 @@ export function VideoCanvas() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
-  // Both hooks are always mounted but each is gated by the active source mode:
-  // MediaMTX pull (production) vs. local webcam publish (dev). Only one drives
-  // the <video> element at a time.
-  useWebRTC(videoRef);
+  // We only use the local browser camera (dev mode) since MediaMTX is removed.
   useBrowserCamera(videoRef);
 
-  const metrics = useStore((s) => s.metrics);
+  const activeCameraId = config.cameraId;
+  const metrics = useStore((s) => s.metrics[activeCameraId]);
   const timestamp = useClock();
 
   const fps = metrics ? metrics.streamFps.toFixed(1) : "—";
@@ -53,18 +50,24 @@ export function VideoCanvas() {
 
   useEffect(() => {
     let raf = 0;
-    const render = () => {
+      const render = () => {
       const canvas = canvasRef.current;
       const video = videoRef.current;
       if (canvas && video) {
         // Read latest detection straight from the store (no React re-render).
-        drawDetections(canvas, video, useStore.getState().detection);
+        drawDetections(
+          canvas,
+          video,
+          useStore.getState().detections[config.cameraId]
+        );
       }
       raf = requestAnimationFrame(render);
     };
     raf = requestAnimationFrame(render);
     return () => cancelAnimationFrame(raf);
   }, []);
+
+  const detection = useStore((s) => s.detections[config.cameraId]);
 
   return (
     <div className="relative h-full w-full overflow-hidden rounded-xl bg-video">
@@ -128,6 +131,15 @@ export function VideoCanvas() {
         className="pointer-events-none absolute inset-0 z-10 h-full w-full"
       />
 
+      {/* Collision Alerts overlay */}
+      {detection?.alerts && detection.alerts.length > 0 && (
+        <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center animate-pulse shadow-[inset_0_0_100px_rgba(239,68,68,0.7)] border-4 border-red-500 rounded-xl">
+          <div className="bg-red-600/90 text-white font-black text-3xl md:text-5xl px-8 py-4 rounded-xl tracking-widest backdrop-blur-md border border-red-400 drop-shadow-2xl">
+            {detection.alerts[0]}
+          </div>
+        </div>
+      )}
+
       {/* HUD corner brackets. */}
       <Corner pos="tl" />
       <Corner pos="tr" />
@@ -158,7 +170,9 @@ export function VideoCanvas() {
       {/* HUD: camera id + resolution (bottom-right). */}
       <div className="absolute bottom-[18px] right-10 z-20 flex items-center gap-2">
         <span className="font-mono text-[10px] text-accent/50">{cameraId}</span>
-        <span className="font-mono text-[9px] text-white/20">1920×1080</span>
+        <span className="font-mono text-[9px] text-white/20">
+          {detection ? `${detection.frameWidth}×${detection.frameHeight}` : '—'}
+        </span>
       </div>
 
       <VideoStatusOverlay />

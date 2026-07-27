@@ -48,7 +48,9 @@ function toState(value: string, ok: string, warn: string): PillState {
 }
 
 export function StatusBar() {
-  const { detectionSocket, metricsSocket, videoState } = useStore();
+  const detectionSocket = useStore((s) => s.detectionSocket);
+  const metricsSocket = useStore((s) => s.metricsSocket);
+  const videoState = useStore((s) => s.videoState);
   const isMobile = useIsMobile();
 
   const vState = toState(videoState, "connected", "connecting");

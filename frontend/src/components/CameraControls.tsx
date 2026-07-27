@@ -1,9 +1,7 @@
 /**
  * Source controls shown as a bar below the video stream.
  *
- * Lets a developer switch between the production MediaMTX WebRTC stream and
- * "Browser Camera Mode" (publish this device's webcam straight to the backend).
- * "Start Camera" is an explicit gesture, which also satisfies the browser's
+ * "Start Camera" is an explicit gesture, which satisfies the browser's
  * getUserMedia permission requirement.
  *
  * While Browser Camera Mode is live, a flip control lets the user switch between
@@ -12,6 +10,7 @@
  */
 
 import { useStore } from "@/store/useStore";
+import { RadarControls } from "./RadarControls";
 
 /** Camera-flip glyph. */
 function FlipIcon() {
@@ -36,37 +35,23 @@ function FlipIcon() {
 }
 
 export function CameraControls() {
-  const sourceMode = useStore((s) => s.sourceMode);
   const active = useStore((s) => s.browserCameraActive);
   const facing = useStore((s) => s.cameraFacing);
-  const setSourceMode = useStore((s) => s.setSourceMode);
   const setBrowserCameraActive = useStore((s) => s.setBrowserCameraActive);
   const toggleCameraFacing = useStore((s) => s.toggleCameraFacing);
 
-  const browserLive = sourceMode === "browser" && active;
-
-  const startBrowserCamera = () => {
-    setSourceMode("browser");
-    setBrowserCameraActive(true);
-  };
-
-  const stopBrowserCamera = () => {
-    setBrowserCameraActive(false);
-    setSourceMode("mediamtx");
-  };
-
   return (
     <div className="flex flex-shrink-0 flex-wrap items-center gap-2 px-1">
-      {browserLive ? (
+      {active ? (
         <button
-          onClick={stopBrowserCamera}
+          onClick={() => setBrowserCameraActive(false)}
           className="inline-flex items-center gap-1.5 rounded-md bg-red-500 px-[11px] py-[5px] text-[11px] font-semibold text-black shadow-[0_2px_8px_rgba(0,0,0,0.45)] ring-1 ring-black/20 transition hover:brightness-110"
         >
           ◼ Stop Camera
         </button>
       ) : (
         <button
-          onClick={startBrowserCamera}
+          onClick={() => setBrowserCameraActive(true)}
           className="inline-flex items-center gap-1.5 rounded-md bg-accent px-[11px] py-[5px] text-[11px] font-semibold text-black shadow-[0_2px_8px_rgba(0,0,0,0.45)] ring-1 ring-black/20 transition hover:brightness-110"
         >
           ● Start Camera
@@ -74,7 +59,7 @@ export function CameraControls() {
       )}
 
       {/* Front/back switch — only meaningful while the browser camera runs. */}
-      {browserLive && (
+      {active && (
         <button
           onClick={toggleCameraFacing}
           aria-label={`Switch to ${facing === "environment" ? "front" : "rear"} camera`}
@@ -87,8 +72,12 @@ export function CameraControls() {
       )}
 
       <span className="rounded bg-black/45 px-2 py-[3px] font-mono text-[9px] text-white/[0.32]">
-        {sourceMode === "browser" ? "Browser camera (dev)" : "MediaMTX stream"}
+        Browser camera (dev)
       </span>
+      
+      <div className="ml-auto">
+        <RadarControls />
+      </div>
     </div>
   );
 }

@@ -7,14 +7,12 @@ import { useStore } from "@/store/useStore";
 import type { DetectionMessage } from "@/types";
 
 export function useDetectionSocket(cameraId?: string): void {
-  const setDetection = useStore((s) => s.setDetection);
-  const setState = useStore((s) => s.setDetectionSocket);
-  const pushAlert = useStore((s) => s.pushAlert);
+  const { setDetection, setDetectionSocket: setState, pushAlert } = useStore.getState();
 
   useEffect(() => {
     const socket = new ReconnectingSocket<DetectionMessage>({
       url: wsUrl("detections", cameraId),
-      onMessage: setDetection,
+      onMessage: (data) => setDetection(data.cameraId, data),
       onStateChange: (state) => {
         setState(state);
         if (state === "closed") {
@@ -24,5 +22,5 @@ export function useDetectionSocket(cameraId?: string): void {
     });
     socket.connect();
     return () => socket.close();
-  }, [cameraId, setDetection, setState, pushAlert]);
+  }, [cameraId]);
 }

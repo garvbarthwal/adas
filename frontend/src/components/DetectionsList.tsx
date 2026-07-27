@@ -1,10 +1,12 @@
 /** Live list of currently detected objects from `/ws/detections`. */
 
 import { useStore } from "@/store/useStore";
+import { config } from "@/services/config";
 import { classColor, confidenceColor } from "@/services/format";
 
 export function DetectionsList() {
-  const detection = useStore((s) => s.detection);
+  const activeCameraId = config.cameraId;
+  const detection = useStore((s) => s.detections[activeCameraId]);
   const objects = detection?.objects ?? [];
 
   return (
@@ -24,12 +26,12 @@ export function DetectionsList() {
             No objects detected
           </div>
         ) : (
-          objects.map((o) => {
+          objects.map((o, index) => {
             const color = classColor(o.class);
             const pct = Math.round(o.confidence * 100);
             return (
               <div
-                key={`${o.id}-${o.class}`}
+                key={o.id >= 0 ? `${o.id}-${o.class}` : `idx-${index}-${o.class}`}
                 className="flex animate-fade-slide items-center justify-between gap-2.5 rounded-[7px] border border-white/[0.04] bg-white/[0.025] px-[11px] py-[9px] transition-colors hover:border-white/[0.08] hover:bg-white/[0.045]"
               >
                 <div className="flex min-w-0 items-center gap-[9px]">

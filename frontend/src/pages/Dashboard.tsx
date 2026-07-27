@@ -71,14 +71,15 @@ function TabBar({
 }
 
 export function Dashboard() {
-  // Subscribe to the two channels independently, scoped to the active camera.
+  // Subscribe to all channels independently, scoped to the active camera.
   useDetectionSocket(config.cameraId);
   useMetricsSocket(config.cameraId);
 
   const isMobile = useIsMobile();
   const [tab, setTab] = useState<Tab>("detections");
+  const activeCameraId = config.cameraId;
 
-  const objectCount = useStore((s) => s.detection?.objects.length ?? 0);
+  const objectCount = useStore((s) => s.detections[activeCameraId]?.objects.length ?? 0);
   const alertCount = useStore((s) => s.alerts.length);
 
   // On desktop every panel is visible; on mobile only the active tab.

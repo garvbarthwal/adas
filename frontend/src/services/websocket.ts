@@ -7,6 +7,7 @@
  */
 
 import type { ConnectionState } from "@/types";
+import { decode } from "@msgpack/msgpack";
 
 export interface ReconnectingSocketOptions<T> {
   url: string;
@@ -33,6 +34,7 @@ export class ReconnectingSocket<T> {
   private open(): void {
     this.opts.onStateChange?.("connecting");
     const ws = new WebSocket(this.opts.url);
+    ws.binaryType = 'arraybuffer';
     this.ws = ws;
 
     ws.onopen = () => {
@@ -42,7 +44,7 @@ export class ReconnectingSocket<T> {
 
     ws.onmessage = (event) => {
       try {
-        this.opts.onMessage(JSON.parse(event.data) as T);
+        this.opts.onMessage(decode(event.data) as T);
       } catch {
         // Ignore malformed frames rather than crashing the channel.
       }

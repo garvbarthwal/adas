@@ -7,9 +7,7 @@ import { useStore } from "@/store/useStore";
 import type { CameraMetrics } from "@/types";
 
 export function useMetricsSocket(cameraId?: string): void {
-  const setMetrics = useStore((s) => s.setMetrics);
-  const setState = useStore((s) => s.setMetricsSocket);
-  const pushAlert = useStore((s) => s.pushAlert);
+  const { setMetrics, setMetricsSocket: setState, pushAlert } = useStore.getState();
   // Track previous stream status to alert only on transitions.
   const prevStream = useRef<string | null>(null);
 
@@ -17,7 +15,7 @@ export function useMetricsSocket(cameraId?: string): void {
     const socket = new ReconnectingSocket<CameraMetrics>({
       url: wsUrl("metrics", cameraId),
       onMessage: (m) => {
-        setMetrics(m);
+        setMetrics(m.cameraId, m);
         if (prevStream.current && prevStream.current !== m.streamStatus) {
           if (m.streamStatus === "offline") {
             pushAlert("error", `Stream ${m.cameraId} went offline`);
@@ -31,5 +29,5 @@ export function useMetricsSocket(cameraId?: string): void {
     });
     socket.connect();
     return () => socket.close();
-  }, [cameraId, setMetrics, setState, pushAlert]);
+  }, [cameraId]);
 }

@@ -21,14 +21,6 @@ export interface Alert {
 }
 
 /**
- * Video source mode:
- *  - "mediamtx" — production: pull WebRTC video from MediaMTX (default).
- *  - "browser"  — development: capture this device's webcam and publish it to
- *    the backend ("Browser Camera Mode"); the preview is the local stream.
- */
-export type SourceMode = "mediamtx" | "browser";
-
-/**
  * Which physical camera Browser Camera Mode captures from. Maps directly to the
  * getUserMedia `facingMode` constraint: "user" = front (selfie) camera,
  * "environment" = rear camera. Mainly useful on phones/tablets.
@@ -42,28 +34,26 @@ interface AppState {
   videoState: RTCPeerConnectionState | "idle";
 
   // --- Video source ---
-  sourceMode: SourceMode;
   /** True while the browser webcam is actively capturing + publishing. */
   browserCameraActive: boolean;
   /** Front vs rear camera for Browser Camera Mode. */
   cameraFacing: CameraFacing;
 
   // --- Live data ---
-  detection: DetectionMessage | null;
-  metrics: CameraMetrics | null;
+  detections: Record<string, DetectionMessage>;
+  metrics: Record<string, CameraMetrics>;
   alerts: Alert[];
 
   // --- Actions ---
   setDetectionSocket: (s: ConnectionState) => void;
   setMetricsSocket: (s: ConnectionState) => void;
   setVideoState: (s: RTCPeerConnectionState | "idle") => void;
-  setSourceMode: (m: SourceMode) => void;
   setBrowserCameraActive: (active: boolean) => void;
   setCameraFacing: (f: CameraFacing) => void;
   /** Flip between the front and rear camera. */
   toggleCameraFacing: () => void;
-  setDetection: (d: DetectionMessage) => void;
-  setMetrics: (m: CameraMetrics) => void;
+  setDetection: (cameraId: string, d: DetectionMessage) => void;
+  setMetrics: (cameraId: string, m: CameraMetrics) => void;
   pushAlert: (level: Alert["level"], message: string) => void;
 }
 
@@ -74,26 +64,24 @@ export const useStore = create<AppState>((set) => ({
   metricsSocket: "connecting",
   videoState: "idle",
 
-  sourceMode: "mediamtx",
-  browserCameraActive: false,
+  browserCameraActive: false, // Wait, since there's no MediaMTX, we might want this true by default or user explicitly clicks "Start". Leaving false to match UX.
   cameraFacing: "environment",
 
-  detection: null,
-  metrics: null,
+  detections: {},
+  metrics: {},
   alerts: [],
 
   setDetectionSocket: (s) => set({ detectionSocket: s }),
   setMetricsSocket: (s) => set({ metricsSocket: s }),
   setVideoState: (s) => set({ videoState: s }),
-  setSourceMode: (m) => set({ sourceMode: m }),
   setBrowserCameraActive: (active) => set({ browserCameraActive: active }),
   setCameraFacing: (f) => set({ cameraFacing: f }),
   toggleCameraFacing: () =>
     set((state) => ({
       cameraFacing: state.cameraFacing === "user" ? "environment" : "user",
     })),
-  setDetection: (d) => set({ detection: d }),
-  setMetrics: (m) => set({ metrics: m }),
+  setDetection: (cameraId, d) => set((state) => ({ detections: { ...state.detections, [cameraId]: d } })),
+  setMetrics: (cameraId, m) => set((state) => ({ metrics: { ...state.metrics, [cameraId]: m } })),
   pushAlert: (level, message) =>
     set((state) => ({
       alerts: [

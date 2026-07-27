@@ -26,7 +26,9 @@ function MetricCard({ label, value, unit }: { label: string; value: string; unit
 }
 
 export function MetricsPanel() {
-  const metrics = useStore((s) => s.metrics);
+  const activeCameraId = config.cameraId;
+  const metrics = useStore((s) => s.metrics[activeCameraId]);
+  const detections = useStore((s) => s.detections[activeCameraId]);
   const status = metrics?.streamStatus ?? "offline";
   const color = statusColor(status);
 
@@ -55,6 +57,28 @@ export function MetricsPanel() {
         <MetricCard label="Stream FPS" value={(metrics?.streamFps ?? 0).toFixed(1)} />
         <MetricCard label="Latency" value={`${Math.round(metrics?.latencyMs ?? 0)}`} unit="ms" />
         <MetricCard label="Tracked" value={`${metrics?.trackedObjects ?? 0}`} unit="obj" />
+        
+        {/* Closest target distance */}
+        <MetricCard 
+          label="Target Dist" 
+          value={
+            (() => {
+              const objs = detections?.objects ?? [];
+              let closest = null;
+              let maxArea = 0;
+              for (const obj of objs) {
+                const area = (obj.x2 - obj.x1) * (obj.y2 - obj.y1);
+                if (area > maxArea) {
+                  maxArea = area;
+                  closest = obj;
+                }
+              }
+              return closest?.radar_distance ? closest.radar_distance.toFixed(1) : "-";
+            })()
+          } 
+          unit="m" 
+        />
+        
         <MetricCard label="Uptime" value={formatUptime(metrics?.uptimeSeconds ?? 0)} />
         <MetricCard label="Source" value={metrics?.cameraId ?? config.cameraId} />
       </div>

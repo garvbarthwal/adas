@@ -1,82 +1,39 @@
-import { useEffect, useState } from "react";
-import { api } from "@/services/api";
+import { useState } from "react";
 import { RadarSettingsModal } from "./RadarSettingsModal";
-
-type PortInfo = { device: string; description: string };
+import { useRadarWebSerial } from "@/hooks/useRadarWebSerial";
 
 export function RadarControls() {
-  const [ports, setPorts] = useState<PortInfo[]>([]);
-  const [selectedPort, setSelectedPort] = useState<string>("");
-  const [loading, setLoading] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-  const fetchPorts = async () => {
-    try {
-      const data = await api.radarPorts();
-      setPorts(data);
-    } catch (err) {
-      console.error("Failed to load radar ports:", err);
-    }
-  };
-
-  // Fetch available ports on mount
-  useEffect(() => {
-    fetchPorts();
-  }, []);
-
-  const handleChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const port = e.target.value;
-    setSelectedPort(port);
-    if (!port) return;
-    
-    setLoading(true);
-    try {
-      await api.setRadarPort(port);
-    } catch (err) {
-      console.error("Failed to set radar port:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { connect, disconnect, status } = useRadarWebSerial();
 
   return (
     <div className="flex items-center gap-2">
       <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
         Radar
       </span>
-      <select
-        value={selectedPort}
-        onChange={handleChange}
-        disabled={loading}
-        className="h-[25px] max-w-[200px] truncate rounded bg-black/55 px-2 text-[11px] text-slate-200 shadow-[0_2px_8px_rgba(0,0,0,0.3)] outline-none ring-1 ring-white/10 transition hover:bg-black/70 focus:ring-accent"
-      >
-        <option value="" disabled>
-          {ports.length === 0 ? "No ports found" : "Select port..."}
-        </option>
-        {ports.map((p) => (
-          <option key={p.device} value={p.device}>
-            {p.device} - {p.description}
-          </option>
-        ))}
-      </select>
+      
       <button 
-        onClick={fetchPorts}
-        className="flex h-[25px] w-[25px] items-center justify-center rounded bg-black/55 text-slate-400 shadow-[0_2px_8px_rgba(0,0,0,0.3)] ring-1 ring-white/10 transition hover:bg-black/70 hover:text-white"
-        title="Refresh ports"
-        aria-label="Refresh ports"
+        onClick={status === "disconnected" ? connect : disconnect}
+        className={`h-[25px] px-3 text-[11px] font-medium rounded shadow-[0_2px_8px_rgba(0,0,0,0.3)] ring-1 ring-white/10 transition outline-none ${
+          status === "connected" 
+            ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" 
+            : status === "connecting"
+            ? "bg-amber-500/20 text-amber-400"
+            : "bg-black/55 text-slate-200 hover:bg-black/70 hover:text-white"
+        }`}
       >
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-          <path d="M3 3v5h5"/>
-          <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/>
-          <path d="M16 21v-5h5"/>
-        </svg>
+        {status === "connected" ? "Disconnect" : status === "connecting" ? "Connecting..." : "Connect USB"}
       </button>
 
       {/* Settings Button */}
       <button 
         onClick={() => setIsSettingsOpen(true)}
-        className="flex h-[25px] w-[25px] items-center justify-center rounded bg-black/55 text-slate-400 shadow-[0_2px_8px_rgba(0,0,0,0.3)] ring-1 ring-white/10 transition hover:bg-black/70 hover:text-white ml-1"
+        disabled={status !== "connected"}
+        className={`flex h-[25px] w-[25px] items-center justify-center rounded shadow-[0_2px_8px_rgba(0,0,0,0.3)] ring-1 ring-white/10 transition ml-1 ${
+          status === "connected"
+            ? "bg-black/55 text-slate-400 hover:bg-black/70 hover:text-white"
+            : "bg-black/20 text-slate-600 cursor-not-allowed"
+        }`}
         title="Radar Settings"
         aria-label="Radar Settings"
       >

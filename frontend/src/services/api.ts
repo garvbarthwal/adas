@@ -28,8 +28,6 @@ export const api = {
   metrics: () => get<CameraMetrics[]>("/metrics"),
   streams: () => get<unknown[]>("/streams"),
   latestDetections: () => get<DetectionMessage[]>("/latest-detections"),
-  radarPorts: () => get<{device: string, description: string}[]>("/radar/ports"),
-  setRadarPort: (port: string) => post<{status: string, port: string}>("/radar/port", { port }),
   setGateSensitivity: (gate: number, motion: number, staticSens: number) => 
     post<{status: string}>("/radar/sensitivity", { gate, motion, static: staticSens }),
 };

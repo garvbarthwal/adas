@@ -1,8 +1,7 @@
 import asyncio
 import logging
 from dataclasses import dataclass, field
-import serial_asyncio
-import serial.tools.list_ports
+
 import struct
 
 logger = logging.getLogger(__name__)
@@ -12,14 +11,6 @@ RADAR_TRAILER = bytes([0xF8, 0xF7, 0xF6, 0xF5])
 CONFIG_HEADER = bytes([0xFD, 0xFC, 0xFB, 0xFA])
 CONFIG_TRAILER = bytes([0x04, 0x03, 0x02, 0x01])
 
-def discover_radar_port() -> str:
-    ports = serial.tools.list_ports.comports()
-    for p in ports:
-        if "USB" in p.device or "ACM" in p.device:
-            return p.device
-    if ports:
-        return ports[0].device
-    return "/dev/ttyUSB0"
 
 @dataclass
 class RadarFrame:

@@ -23,7 +23,7 @@ COPY requirements.txt .
 RUN pip install --upgrade pip && \
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu && \
     pip install -r requirements.txt
-RUN pip install onnxruntime==1.17.1 onnxscript==0.1.0
+
 
 # Pre-download the default model weights at build time so the first request is
 # not delayed by a network download (override MODEL at runtime if needed).

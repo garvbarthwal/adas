@@ -33,7 +33,7 @@ async def ingest(
     """Accept a browser WebRTC publish (WHIP) and feed frames to the pipeline."""
     # Lazy import keeps aiortc optional for RTSP-only deployments.
     try:
-        from aiortc import RTCPeerConnection, RTCSessionDescription
+        from aiortc import RTCPeerConnection, RTCSessionDescription, RTCConfiguration, RTCIceServer
     except ImportError as exc:  # pragma: no cover
         raise HTTPException(
             status_code=501,
@@ -54,7 +54,10 @@ async def ingest(
     offer_sdp = (await request.body()).decode("utf-8")
     offer = RTCSessionDescription(sdp=offer_sdp, type="offer")
 
-    pc = RTCPeerConnection()
+    config = RTCConfiguration(
+        iceServers=[RTCIceServer(urls=["stun:stun.l.google.com:19302"])]
+    )
+    pc = RTCPeerConnection(configuration=config)
     _register_pc(request, pc)
     source = pipeline.source
 

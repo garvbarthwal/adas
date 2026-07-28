@@ -3,8 +3,6 @@ import { config } from "@/services/config";
 
 // LD2410 BLE UUIDs
 const SERVICE_UUID = 0xFFF0;
-const RX_CHAR_UUID = 0xFFF1; // Device sends data to us on this characteristic
-const TX_CHAR_UUID = 0xFFF2; // We write commands to this characteristic
 
 export function useRadarBluetooth() {
   const [status, setStatus] = useState<"disconnected" | "connecting" | "connected">("disconnected");

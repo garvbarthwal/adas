@@ -66,10 +66,10 @@ export function useRadarBluetooth() {
       
       // 3. Get Service and Characteristics
       const service = await server.getPrimaryService(SERVICE_UUID);
-      rxCharRef.current = await service.getCharacteristic(RX_CHAR_UUID);
-      txCharRef.current = await service.getCharacteristic(TX_CHAR_UUID);
+      const char1 = await service.getCharacteristic(0xFFF1);
+      const char2 = await service.getCharacteristic(0xFFF2);
 
-      // 4. Connect WebSocket to AWS backend
+      // 4. Connect WebSocket to local backend
       const wsUrl = config.wsBaseUrl.replace("http", "ws") + "/ws/radar-stream?cameraId=carcam";
       const ws = new WebSocket(wsUrl);
       ws.binaryType = "arraybuffer";
@@ -78,16 +78,55 @@ export function useRadarBluetooth() {
       ws.onopen = async () => {
         setStatus("connected");
         
-        // 5. Start listening to radar BLE stream and forward to WebSocket
-        await rxCharRef.current.startNotifications();
-        rxCharRef.current.addEventListener('characteristicvaluechanged', (event: any) => {
+        console.log("Starting BLE notifications on BOTH characteristics...");
+        
+        const handleData = (charName: string) => (event: any) => {
           const value: DataView = event.target.value;
           const buffer = new Uint8Array(value.buffer);
-          
+          console.log(`[BLE ${charName}] ${buffer.length} bytes:`, Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join(' '));
           if (wsRef.current?.readyState === WebSocket.OPEN) {
             wsRef.current.send(buffer);
           }
-        });
+        };
+
+        // Try subscribing to FFF1
+        try {
+          if (char1.properties.notify || char1.properties.indicate) {
+            await char1.startNotifications();
+            char1.addEventListener('characteristicvaluechanged', handleData("FFF1"));
+            rxCharRef.current = char1;
+            txCharRef.current = char2;
+            console.log("Subscribed to FFF1");
+          }
+        } catch (e) { console.log("FFF1 is not notifiable"); }
+
+        // Try subscribing to FFF2
+        try {
+          if (char2.properties.notify || char2.properties.indicate) {
+            await char2.startNotifications();
+            char2.addEventListener('characteristicvaluechanged', handleData("FFF2"));
+            rxCharRef.current = char2;
+            txCharRef.current = char1;
+            console.log("Subscribed to FFF2");
+          }
+        } catch (e) { console.log("FFF2 is not notifiable"); }
+
+        // 5.5 Send LD2410 Bluetooth Unlock Password ("adasgb")
+        // The LD2410 will not stream BLE data until it receives this auth frame!
+        // The Bluetooth auth command is 0xA8, and the password is 6 bytes.
+        const authFrame = new Uint8Array([
+          0xFD, 0xFC, 0xFB, 0xFA,             // Header
+          0x08, 0x00,                         // Length (8 bytes)
+          0xA8, 0x00,                         // Command (Auth: 0xA8)
+          0x61, 0x64, 0x61, 0x73, 0x67, 0x62, // "adasgb" in HEX
+          0x04, 0x03, 0x02, 0x01              // Footer
+        ]);
+        try {
+          await txCharRef.current.writeValueWithoutResponse(authFrame);
+          console.log("Sent BLE Auth Frame for password 'adasgb'");
+        } catch (e) {
+          console.error("Failed to send auth frame:", e);
+        }
       };
 
       ws.onclose = () => {

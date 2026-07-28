@@ -144,10 +144,10 @@ export function VideoCanvas() {
       />
 
       {/* Collision Alerts overlay */}
-      {(isCollision || (detection?.alerts && detection.alerts.length > 0)) && (
+      {(isCollision || ((detection?.alerts?.length ?? 0) > 0)) && (
         <div className="pointer-events-none absolute inset-0 z-50 flex items-center justify-center animate-pulse shadow-[inset_0_0_100px_rgba(239,68,68,0.7)] border-4 border-red-500 rounded-xl">
           <div className="bg-red-600/90 text-white font-black text-3xl md:text-5xl px-8 py-4 rounded-xl tracking-widest backdrop-blur-md border border-red-400 drop-shadow-2xl">
-            {isCollision ? "FORWARD COLLISION WARNING" : detection?.alerts[0]}
+            {isCollision ? "FORWARD COLLISION WARNING" : detection?.alerts?.[0]}
           </div>
         </div>
       )}

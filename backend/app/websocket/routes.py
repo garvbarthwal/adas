@@ -88,3 +88,4 @@ async def ws_radar_stream(websocket: WebSocket) -> None:
         logger.warning(f"Radar stream error: {e}")
     finally:
         sender_task.cancel()
+        radar_service.reset()

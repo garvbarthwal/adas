@@ -20,6 +20,10 @@ class RadarService:
     def feed(self, data: bytes) -> None:
         """Feed bytes from the Web Serial proxy into the driver."""
         self.radar.feed(data)
+        
+    def reset(self) -> None:
+        """Clear the latest frame when the radar disconnects."""
+        self.radar.latest_frame = None
 
     async def get_outgoing_bytes(self) -> bytes:
         """Wait for bytes that need to be sent back to the radar."""

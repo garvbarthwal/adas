@@ -261,7 +261,8 @@ class CameraPipeline:
                 if radar_distance is not None:
                     # Forward Collision Warning
                     frame = self._radar_service.get_latest_frame()
-                    if radar_distance < 2.5 and frame:
+                    # Changed from 2.5m to 0.5m so it doesn't trigger while testing at a desk
+                    if radar_distance < 0.5 and frame:
                         max_energy = max(frame.moving_energy, frame.static_energy)
                         if max_energy > 40:
                             alerts.append("FORWARD COLLISION WARNING")

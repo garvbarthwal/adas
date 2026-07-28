@@ -1,7 +1,10 @@
 import { useRadarBluetooth } from "@/hooks/useRadarBluetooth";
+import { useStore } from "@/store/useStore";
 
 export function RadarControls() {
   const { connect: connectBT, disconnect: disconnectBT, status: statusBT } = useRadarBluetooth();
+  const collisionWarningDist = useStore(s => s.collisionWarningDist);
+  const setCollisionWarningDist = useStore(s => s.setCollisionWarningDist);
 
   return (
     <div className="flex items-center gap-2">
@@ -25,6 +28,20 @@ export function RadarControls() {
         </svg>
         {statusBT === "connected" ? "Disconnect BT" : statusBT === "connecting" ? "Connecting..." : "Connect BT"}
       </button>
+
+      {/* Warning Distance Slider */}
+      <div className="ml-2 flex items-center gap-2 border-l border-white/10 pl-3">
+        <span className="text-[10px] text-slate-400">Warning: {collisionWarningDist.toFixed(1)}m</span>
+        <input 
+          type="range" 
+          min="0.5" 
+          max="5.0" 
+          step="0.1" 
+          value={collisionWarningDist} 
+          onChange={(e) => setCollisionWarningDist(parseFloat(e.target.value))}
+          className="w-24 accent-red-500"
+        />
+      </div>
     </div>
   );
 }

@@ -55,6 +55,8 @@ interface AppState {
   setDetection: (cameraId: string, d: DetectionMessage) => void;
   setMetrics: (cameraId: string, m: CameraMetrics) => void;
   pushAlert: (level: Alert["level"], message: string) => void;
+  collisionWarningDist: number;
+  setCollisionWarningDist: (dist: number) => void;
 }
 
 const MAX_ALERTS = 50;
@@ -70,6 +72,7 @@ export const useStore = create<AppState>((set) => ({
   detections: {},
   metrics: {},
   alerts: [],
+  collisionWarningDist: 2.0,
 
   setDetectionSocket: (s) => set({ detectionSocket: s }),
   setMetricsSocket: (s) => set({ metricsSocket: s }),
@@ -89,4 +92,5 @@ export const useStore = create<AppState>((set) => ({
         ...state.alerts,
       ].slice(0, MAX_ALERTS),
     })),
+  setCollisionWarningDist: (dist) => set({ collisionWarningDist: dist }),
 }));

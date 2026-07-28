@@ -1,10 +1,14 @@
 import { useState } from "react";
 import { RadarSettingsModal } from "./RadarSettingsModal";
 import { useRadarWebSerial } from "@/hooks/useRadarWebSerial";
+import { useRadarBluetooth } from "@/hooks/useRadarBluetooth";
 
 export function RadarControls() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const { connect, disconnect, status } = useRadarWebSerial();
+  const { connect: connectUSB, disconnect: disconnectUSB, status: statusUSB } = useRadarWebSerial();
+  const { connect: connectBT, disconnect: disconnectBT, status: statusBT } = useRadarBluetooth();
+
+  const isAnyConnected = statusUSB === "connected" || statusBT === "connected";
 
   return (
     <div className="flex items-center gap-2">
@@ -12,25 +16,45 @@ export function RadarControls() {
         Radar
       </span>
       
+      {/* Bluetooth Connect Button */}
       <button 
-        onClick={status === "disconnected" ? connect : disconnect}
-        className={`h-[25px] px-3 text-[11px] font-medium rounded shadow-[0_2px_8px_rgba(0,0,0,0.3)] ring-1 ring-white/10 transition outline-none ${
-          status === "connected" 
-            ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" 
-            : status === "connecting"
+        onClick={statusBT === "disconnected" ? connectBT : disconnectBT}
+        disabled={statusUSB === "connected" || statusUSB === "connecting"}
+        className={`flex items-center gap-1.5 h-[25px] px-3 text-[11px] font-medium rounded shadow-[0_2px_8px_rgba(0,0,0,0.3)] ring-1 ring-white/10 transition outline-none ${
+          statusBT === "connected" 
+            ? "bg-blue-500/20 text-blue-400 hover:bg-blue-500/30" 
+            : statusBT === "connecting"
             ? "bg-amber-500/20 text-amber-400"
-            : "bg-black/55 text-slate-200 hover:bg-black/70 hover:text-white"
+            : "bg-black/55 text-slate-200 hover:bg-black/70 hover:text-white disabled:opacity-50"
         }`}
       >
-        {status === "connected" ? "Disconnect" : status === "connecting" ? "Connecting..." : "Connect USB"}
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m7 7 10 10-5 5V2l5 5-10 10"/>
+        </svg>
+        {statusBT === "connected" ? "Disconnect BT" : statusBT === "connecting" ? "Connecting..." : "Connect BT"}
+      </button>
+
+      {/* USB Connect Button */}
+      <button 
+        onClick={statusUSB === "disconnected" ? connectUSB : disconnectUSB}
+        disabled={statusBT === "connected" || statusBT === "connecting"}
+        className={`h-[25px] px-3 text-[11px] font-medium rounded shadow-[0_2px_8px_rgba(0,0,0,0.3)] ring-1 ring-white/10 transition outline-none ${
+          statusUSB === "connected" 
+            ? "bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30" 
+            : statusUSB === "connecting"
+            ? "bg-amber-500/20 text-amber-400"
+            : "bg-black/55 text-slate-200 hover:bg-black/70 hover:text-white disabled:opacity-50"
+        }`}
+      >
+        {statusUSB === "connected" ? "Disconnect USB" : statusUSB === "connecting" ? "Connecting..." : "Connect USB"}
       </button>
 
       {/* Settings Button */}
       <button 
         onClick={() => setIsSettingsOpen(true)}
-        disabled={status !== "connected"}
+        disabled={!isAnyConnected}
         className={`flex h-[25px] w-[25px] items-center justify-center rounded shadow-[0_2px_8px_rgba(0,0,0,0.3)] ring-1 ring-white/10 transition ml-1 ${
-          status === "connected"
+          isAnyConnected
             ? "bg-black/55 text-slate-400 hover:bg-black/70 hover:text-white"
             : "bg-black/20 text-slate-600 cursor-not-allowed"
         }`}
